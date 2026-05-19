@@ -1,0 +1,22 @@
+{
+  "name": "sesame-webui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "orval --config ./orval.config.ts && vite",
+    "build": "orval --config ./orval.config.ts && vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "gen:api": "orval --config ./orval.config.ts"
+  },
+  "dependencies": {
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "orval": "^7.3.0",
+    "typescript": "~5.6.3",
+    "vite": "^6.0.7",
+    "vue-tsc": "^2.2.0"
+  }
+}

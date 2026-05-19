@@ -1,0 +1,58 @@
+/* SuperQuinquin Design System — colors & type tokens
+   Source: Charte graphique V10 - Juillet 2019
+*/
+:root {
+  --sqq-yellow:           #F1DC43;
+  --sqq-yellow-soft:      #FFF4C8;
+  --sqq-yellow-deep:      #E8C81F;
+
+  --sqq-brown:            #3C312E;
+  --sqq-brown-ink:        #2A2220;
+  --sqq-brown-soft:       #5C4F4B;
+
+  --sqq-sage:        #CBBBA0;
+  --sqq-orange:      #D68230;
+  --sqq-terracotta:  #9F3122;
+  --sqq-teal:        #00747F;
+
+  --sqq-paper:    #FFFDF6;
+  --sqq-cream:    #FAF5E6;
+  --sqq-line:     #E6DFCF;
+  --sqq-mute:     #B8AFA4;
+  --sqq-white:    #FFFFFF;
+
+  --color-bg:           var(--sqq-paper);
+  --color-bg-alt:       var(--sqq-cream);
+  --color-bg-inverse:   var(--sqq-brown);
+  --color-bg-accent:    var(--sqq-yellow);
+
+  --color-fg:           var(--sqq-brown);
+  --color-fg-soft:      var(--sqq-brown-soft);
+  --color-fg-mute:      var(--sqq-mute);
+  --color-fg-inverse:   var(--sqq-paper);
+
+  --color-line:         var(--sqq-line);
+  --color-accent:       var(--sqq-yellow);
+
+  --font-display:  "Raleway", "Helvetica Neue", Arial, sans-serif;
+  --font-body:     "Helvetica", "Helvetica Neue", "Roboto", Arial, sans-serif;
+
+  --fs-display:  56px;
+  --fs-h1:       40px;
+  --fs-h2:       28px;
+  --fs-h3:       22px;
+  --fs-h4:       18px;
+  --fs-body:     16px;
+  --fs-small:    14px;
+  --fs-tiny:     12px;
+
+  --space-1:  4px;   --space-2:  8px;   --space-3: 12px;  --space-4: 16px;
+  --space-5: 20px;   --space-6: 24px;   --space-8: 32px;  --space-10: 40px;
+  --space-12: 48px;  --space-16: 64px;  --space-20: 80px;
+
+  --r-sm: 4px; --r-md: 8px; --r-lg: 14px; --r-xl: 22px; --r-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(60,49,46,0.06), 0 1px 1px rgba(60,49,46,0.04);
+  --shadow-md: 0 2px 8px rgba(60,49,46,0.08), 0 1px 2px rgba(60,49,46,0.04);
+  --shadow-lg: 0 12px 32px rgba(60,49,46,0.10), 0 4px 8px rgba(60,49,46,0.04);
+}
