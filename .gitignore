@@ -43,3 +43,9 @@ nb-configuration.xml
 /.quarkus/cli/plugins/
 # TLS Certificates
 .certs/
+
+# Quinoa cache (vendored Node + node_modules)
+.quinoa/
+
+# Node
+node_modules/
