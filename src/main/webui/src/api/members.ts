@@ -1,8 +1,3 @@
-/**
- * Application-facing wrappers around the orval-generated client. Keeps the
- * unwrapped DTOs (the generated client returns `{status, data, headers}`)
- * and exposes a stable signature the screens can call.
- */
 import { getApiMembers, getApiMembersId } from "./generated";
 import type { MemberDetail, MemberStatus, MemberSummary } from "./model";
 

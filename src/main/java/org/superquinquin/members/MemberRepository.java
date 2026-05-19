@@ -11,10 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Adapter between Odoo res.partner records and the application's {@link MemberSummary}
- * / {@link MemberDetail} view models.
- */
 @ApplicationScoped
 public class MemberRepository {
 
@@ -52,15 +48,6 @@ public class MemberRepository {
         return out;
     }
 
-    /**
-     * Many former titulaires now appear as a binôme of someone else. Odoo
-     * keeps both records (the old désinscrit titulaire and the current
-     * is_associated_people one), so they show up twice in search.
-     *
-     * The désinscrit duplicate has no link back to a current main coop —
-     * we drop it. The active is_associated_people record (which carries
-     * the up-to-date status and the parent link) stays.
-     */
     private static boolean isOrphanGhost(JsonNode node) {
         boolean isUnsubscribed = "unsubscribed".equals(textField(node, "cooperative_state"));
         boolean isAssociated   = boolField(node, "is_associated_people");
@@ -81,7 +68,6 @@ public class MemberRepository {
     }
 
     private MemberDetail.Binome resolveBinome(JsonNode node) {
-        // If this member has associated people (binôme child), look it up.
         if (boolField(node, "is_member")) {
             int memberId = node.get("id").asInt();
             JsonNode kids = odoo.executeKw(
@@ -96,7 +82,6 @@ public class MemberRepository {
                 return toBinome(kids.get(0));
             }
         }
-        // Otherwise, if this record IS the binôme child, expose the parent member.
         if (boolField(node, "is_associated_people")) {
             JsonNode parent = node.get("parent_id");
             if (parent != null && parent.isArray() && parent.size() > 0) {
@@ -115,37 +100,36 @@ public class MemberRepository {
     }
 
     private List<Object> buildSearchDomain(String q) {
-        // Cooperators only — exclude companies and non-members noise, and
-        // drop unsubscribed records that have no parent_id link (these are
-        // historical titulaire duplicates of people now registered as
-        // is_associated_people on someone else's account).
-        List<Object> base = List.of(
-                List.of("is_company", "=", false),
-                List.of("active", "=", true)
-        );
-        // ("cooperative_state" != "unsubscribed") OR (parent_member_num > 0)
-        List<Object> dedupClause = List.of("|",
+        List<List<Object>> conjuncts = new ArrayList<>();
+        conjuncts.add(List.of(List.of("is_company", "=", false)));
+        conjuncts.add(List.of(List.of("active", "=", true)));
+        conjuncts.add(List.of("|",
                 List.of("cooperative_state", "!=", "unsubscribed"),
-                List.of("parent_member_num", ">", 0));
-        // Numeric query → barcode_base exact + name contains; otherwise name only.
-        List<Object> term;
+                List.of("parent_member_num", ">", 0)));
+
         Integer asNumber = tryParseInt(q);
         if (asNumber != null) {
-            term = List.of("|",
+            conjuncts.add(List.of("|",
                     List.of("barcode_base", "=", asNumber),
-                    List.of("name", "ilike", q));
+                    List.of("name", "ilike", q)));
         } else {
-            term = List.of(List.of("name", "ilike", q));
+            for (String token : tokenize(q)) {
+                conjuncts.add(List.of(List.of("name", "ilike", token)));
+            }
         }
+
         List<Object> domain = new ArrayList<>();
-        // 3 base conjunctions (is_company, active, dedup) + the term group
-        domain.add("&");
-        domain.add("&");
-        domain.add("&");
-        domain.addAll(base);
-        domain.addAll(dedupClause);
-        domain.addAll(term);
+        for (int i = 0; i < conjuncts.size() - 1; i++) domain.add("&");
+        for (List<Object> conj : conjuncts) domain.addAll(conj);
         return domain;
+    }
+
+    private static List<String> tokenize(String q) {
+        List<String> tokens = new ArrayList<>();
+        for (String t : q.split("[\\s,]+")) {
+            if (!t.isBlank()) tokens.add(t);
+        }
+        return tokens.isEmpty() ? List.of(q) : tokens;
     }
 
     private static Integer tryParseInt(String s) {
@@ -199,7 +183,6 @@ public class MemberRepository {
 
     private static MemberDetail.NextShift parseNextShift(String dateTime, String role) {
         if (dateTime == null || dateTime.isBlank()) return null;
-        // Odoo datetime: "YYYY-MM-DD HH:MM:SS"
         String[] parts = dateTime.split(" ", 2);
         LocalDate date = parseDate(parts[0]);
         String time = parts.length > 1 ? parts[1].substring(0, 5) : "";
@@ -222,7 +205,6 @@ public class MemberRepository {
             String first = trimmed.substring(comma + 1).trim();
             return new ParsedName(first, last);
         }
-        // No comma — fall back to a "First Last" heuristic.
         int sp = trimmed.lastIndexOf(' ');
         if (sp > 0) {
             return new ParsedName(trimmed.substring(0, sp), trimmed.substring(sp + 1));
@@ -230,7 +212,6 @@ public class MemberRepository {
         return new ParsedName(trimmed, "");
     }
 
-    /** "VANDENBUSSCHE" → "Vandenbussche" (preserves multi-word surnames). */
     private static String capitalize(String s) {
         if (s == null || s.isEmpty()) return s;
         StringBuilder out = new StringBuilder(s.length());

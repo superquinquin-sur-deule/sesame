@@ -40,13 +40,12 @@ class MemberDetailTest {
     @Test
     @DisplayName("detail returns the full record with name split, status, joined date and next shift")
     void detailHappyPath() {
-        Map<String, Object> p = partner(1247, "VANDENBUSSCHE, Camille", "up_to_date");
+        Map<String, Object> p = partner(1247, "DOE, Alice", "up_to_date");
         p.put("create_date", "2018-03-14 09:12:00");
         p.put("next_shift_time", "2026-05-24 09:00:00");
         p.put("current_template_name", "CSam. - 09:00");
         p.put("unsubscription_date", false);
         OdooStub.stubSearchReadMatching("res.partner", "\"id\",\"=\",1247", List.of(p));
-        // No binôme child for this member
         OdooStub.stubSearchReadMatching("res.partner", "\"parent_id\",\"=\",1247", List.of());
 
         given().when().get("/api/members/1247")
@@ -54,8 +53,8 @@ class MemberDetailTest {
                 .statusCode(200)
                 .body("id", is(1247))
                 .body("number", is(1247))
-                .body("firstName", is("Camille"))
-                .body("lastName", is("Vandenbussche"))
+                .body("firstName", is("Alice"))
+                .body("lastName", is("Doe"))
                 .body("email", is("x@y.fr"))
                 .body("status", is("ok"))
                 .body("joinedOn", is("2018-03-14"))
@@ -77,11 +76,9 @@ class MemberDetailTest {
     @Test
     @DisplayName("when the member has an associated_people child, binôme is expanded")
     void detailWithBinome() {
-        // Lookup for the member itself
-        Map<String, Object> m = partner(1247, "VANDENBUSSCHE, Camille", "up_to_date");
+        Map<String, Object> m = partner(1247, "DOE, Alice", "up_to_date");
         OdooStub.stubSearchReadMatching("res.partner", "\"id\",\"=\",1247", List.of(m));
-        // Lookup for the binôme child (parent_id = 1247, is_associated_people = true)
-        Map<String, Object> b = partner(1893, "LEFEVRE, Margaux", "up_to_date");
+        Map<String, Object> b = partner(1893, "ROE, Eve", "up_to_date");
         b.put("is_member", false);
         b.put("is_associated_people", true);
         OdooStub.stubSearchReadMatching("res.partner", "\"parent_id\",\"=\",1247", List.of(b));
@@ -91,8 +88,8 @@ class MemberDetailTest {
                 .statusCode(200)
                 .body("binome.id", is(1893))
                 .body("binome.number", is(1893))
-                .body("binome.firstName", is("Margaux"))
-                .body("binome.lastName", is("Lefevre"))
+                .body("binome.firstName", is("Eve"))
+                .body("binome.lastName", is("Roe"))
                 .body("binome.status", is("ok"));
     }
 }

@@ -27,8 +27,6 @@ const props = withDefaults(
   { size: 64 }
 );
 
-/* Derive a consistent hue from the full name so the placeholder colour
-   feels personal but stable across renders. */
 const hue = computed(() => {
   const s = `${props.firstName}${props.lastName}`;
   let h = 0;

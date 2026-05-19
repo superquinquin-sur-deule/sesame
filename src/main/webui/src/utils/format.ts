@@ -1,5 +1,3 @@
-/** Display helpers shared by both screens. */
-
 export function formatNumber(n: number): string {
   return String(n).padStart(4, "0");
 }

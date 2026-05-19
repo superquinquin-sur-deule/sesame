@@ -17,14 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Minimal Odoo JSON-RPC client. Reads-only — the only mutating call here is
- * the initial common/login, which is by definition idempotent.
- *
- * Auth caching: login() is called lazily on first use and re-used for the
- * process lifetime. If Odoo returns a session-expired-like error the caller
- * can {@link #resetAuth()} to force a new login on the next call.
- */
 @ApplicationScoped
 public class OdooClient {
 

@@ -38,8 +38,8 @@ class MemberSearchTest {
         OdooStub.stubSearchRead("res.partner", List.of(
                 Map.of(
                         "id", 1247,
-                        "name", "VANDENBUSSCHE, Camille",
-                        "email", "camille.v@superquinquin.fr",
+                        "name", "DOE, Alice",
+                        "email", "alice.doe@example.com",
                         "barcode_base", 1247,
                         "cooperative_state", "up_to_date",
                         "is_member", true,
@@ -48,16 +48,41 @@ class MemberSearchTest {
                 )
         ));
 
-        given().when().get("/api/members?q=Vanden")
+        given().when().get("/api/members?q=Doe")
                 .then()
                 .statusCode(200)
                 .body("size()", is(1))
                 .body("[0].id", is(1247))
                 .body("[0].number", is(1247))
-                .body("[0].firstName", is("Camille"))
-                .body("[0].lastName", is("Vandenbussche"))
-                .body("[0].email", is("camille.v@superquinquin.fr"))
+                .body("[0].firstName", is("Alice"))
+                .body("[0].lastName", is("Doe"))
+                .body("[0].email", is("alice.doe@example.com"))
                 .body("[0].status", is("ok"));
+    }
+
+    @Test
+    @DisplayName("a multi-word query matches each token against the name regardless of order")
+    void searchByMultipleTokens() {
+        OdooStub.stubSearchRead("res.partner", List.of());
+        OdooStub.stubSearchReadMatching("res.partner", "\"ilike\",\"Roe\"", List.of(
+                Map.of(
+                        "id", 9001,
+                        "name", "ROE, Bob",
+                        "barcode_base", 9001,
+                        "cooperative_state", "up_to_date",
+                        "is_member", true,
+                        "is_associated_people", false,
+                        "parent_member_num", 0
+                )
+        ));
+
+        given().queryParam("q", "Bob Roe")
+                .when().get("/api/members")
+                .then()
+                .statusCode(200)
+                .body("size()", is(1))
+                .body("[0].firstName", is("Bob"))
+                .body("[0].lastName", is("Roe"));
     }
 
     @Test
@@ -66,8 +91,8 @@ class MemberSearchTest {
         OdooStub.stubSearchRead("res.partner", List.of(
                 Map.of(
                         "id", 847,
-                        "name", "DELAHAYE, Lucien",
-                        "email", "lucien.delahaye@gmail.com",
+                        "name", "POE, Charlie",
+                        "email", "charlie.poe@example.com",
                         "barcode_base", 847,
                         "cooperative_state", "alert",
                         "is_member", true,
@@ -87,12 +112,10 @@ class MemberSearchTest {
     @Test
     @DisplayName("orphan désinscrits (no parent link) are filtered — they are duplicates of associated cooperators")
     void orphanUnsubscribedRecordsAreFilteredOut() {
-        // Same person, two records: the historical désinscrit titulaire (orphan)
-        // and the currently-active is_associated_people version linked to a binôme.
         OdooStub.stubSearchRead("res.partner", List.of(
                 Map.of(
                         "id", 1669,
-                        "name", "VANDENBUSSCHE, Marine",
+                        "name", "MOE, Dana",
                         "barcode_base", 10005,
                         "cooperative_state", "unsubscribed",
                         "is_member", true,
@@ -101,7 +124,7 @@ class MemberSearchTest {
                 ),
                 Map.of(
                         "id", 2276,
-                        "name", "VANDENBUSSCHE, Marine",
+                        "name", "MOE, Dana",
                         "barcode_base", 76,
                         "cooperative_state", "up_to_date",
                         "is_member", false,
@@ -110,7 +133,7 @@ class MemberSearchTest {
                 )
         ));
 
-        given().when().get("/api/members?q=Vanden")
+        given().when().get("/api/members?q=Moe")
                 .then()
                 .statusCode(200)
                 .body("size()", is(1))
@@ -125,7 +148,6 @@ class MemberSearchTest {
                 Map.of("id", 1, "name", "A, A", "barcode_base", 1, "cooperative_state", "up_to_date"),
                 Map.of("id", 2, "name", "B, B", "barcode_base", 2, "cooperative_state", "delay"),
                 Map.of("id", 3, "name", "C, C", "barcode_base", 3, "cooperative_state", "blocked"),
-                // Désinscrit with a parent link → kept (not an orphan duplicate).
                 Map.of("id", 4, "name", "D, D", "barcode_base", 4,
                        "cooperative_state", "unsubscribed", "parent_member_num", 99)
         ));

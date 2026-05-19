@@ -1,10 +1,5 @@
 package org.superquinquin.members;
 
-/**
- * Public-facing status displayed at the front desk. The four visible buckets
- * the welcome staff cares about — derived from Odoo's richer cooperative_state
- * selection.
- */
 public enum MemberStatus {
     ok, alert, suspended, removed;
 
