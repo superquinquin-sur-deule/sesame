@@ -6,8 +6,7 @@
           <div class="brand">
             <div class="brand-logo">SQ</div>
             <div>
-              <div class="brand-title">SuperQuinquin</div>
-              <div class="brand-sub">SÉSAME</div>
+              <div class="brand-title">SÉSAME</div>
             </div>
           </div>
           <div class="topbar-spacer" />
