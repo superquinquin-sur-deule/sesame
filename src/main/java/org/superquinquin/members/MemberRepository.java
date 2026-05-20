@@ -20,7 +20,7 @@ public class MemberRepository {
 
     private static final List<String> SUMMARY_FIELDS = List.of(
             "id", "name", "email", "barcode_base", "cooperative_state",
-            "is_member", "is_associated_people", "parent_member_num"
+            "is_member", "is_associated_people", "parent_member_num", "child_ids"
     );
 
     private static final List<String> DETAIL_FIELDS = List.of(
@@ -57,7 +57,13 @@ public class MemberRepository {
         boolean isUnsubscribed = "unsubscribed".equals(textField(node, "cooperative_state"));
         boolean isAssociated   = boolField(node, "is_associated_people");
         boolean hasParentLink  = intField(node, "parent_member_num") > 0;
-        return isUnsubscribed && !isAssociated && !hasParentLink;
+        boolean hasBinomeChild = hasChildren(node);
+        return isUnsubscribed && !isAssociated && !hasParentLink && !hasBinomeChild;
+    }
+
+    private static boolean hasChildren(JsonNode node) {
+        JsonNode v = node.get("child_ids");
+        return v != null && v.isArray() && v.size() > 0;
     }
 
     private static boolean isTechnicalAccount(JsonNode node) {
@@ -115,9 +121,6 @@ public class MemberRepository {
         conjuncts.add(List.of("|",
                 List.of("is_member", "=", true),
                 List.of("is_associated_people", "=", true)));
-        conjuncts.add(List.of("|",
-                List.of("cooperative_state", "!=", "unsubscribed"),
-                List.of("parent_member_num", ">", 0)));
 
         Integer asNumber = tryParseInt(q);
         if (asNumber != null) {

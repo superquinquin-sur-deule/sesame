@@ -142,6 +142,39 @@ class MemberSearchTest {
     }
 
     @Test
+    @DisplayName("an unsubscribed titulaire whose binôme child still points at them is kept — not a real ghost")
+    void unsubscribedTitulaireWithBinomeChildIsKept() {
+        OdooStub.stubSearchRead("res.partner", List.of(
+                Map.of(
+                        "id", 1924,
+                        "name", "VOE, Eve",
+                        "barcode_base", 196,
+                        "cooperative_state", "unsubscribed",
+                        "is_member", true,
+                        "is_associated_people", false,
+                        "parent_member_num", 0,
+                        "child_ids", List.of(2237)
+                ),
+                Map.of(
+                        "id", 2237,
+                        "name", "VOE, Frank",
+                        "barcode_base", 37,
+                        "cooperative_state", "unsubscribed",
+                        "is_member", false,
+                        "is_associated_people", true,
+                        "parent_member_num", 196,
+                        "child_ids", List.of()
+                )
+        ));
+
+        given().when().get("/api/members?q=Voe")
+                .then()
+                .statusCode(200)
+                .body("size()", is(2))
+                .body("id", hasItems(1924, 2237));
+    }
+
+    @Test
     @DisplayName("technical accounts (neither titulaire nor binôme) are filtered out")
     void technicalAccountsAreFilteredOut() {
         OdooStub.stubSearchRead("res.partner", List.of(
