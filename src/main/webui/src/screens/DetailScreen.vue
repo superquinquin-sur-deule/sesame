@@ -84,7 +84,7 @@
     </div>
 
     <div v-else class="empty">
-      <h3 class="empty-title">Coopérateur introuvable</h3>
+      <h3 class="empty-title">Coopérateur·trice introuvable</h3>
     </div>
   </div>
 </template>

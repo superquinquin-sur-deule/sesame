@@ -1,5 +1,5 @@
 <template>
-  <div class="app" :data-screen-label="selectedId ? 'Détail coopérateur' : 'Recherche'">
+  <div class="app" :data-screen-label="selectedId ? 'Détail coopérateur·trice' : 'Recherche'">
     <header class="topbar">
       <div class="topbar-band">
         <div class="topbar-inner">

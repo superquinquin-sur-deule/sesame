@@ -20,8 +20,8 @@ const props = defineProps<{ status: MemberStatus; reason?: string | null }>();
 const labels: Record<MemberStatus, string> = {
   ok: "À jour",
   alert: "En alerte",
-  suspended: "Suspendu",
-  removed: "Désinscrit",
+  suspended: "Suspendu·e",
+  removed: "Désinscrit·e",
 };
 const icons: Record<MemberStatus, string> = {
   ok: "check",

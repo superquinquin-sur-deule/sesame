@@ -1,6 +1,6 @@
 <template>
   <div class="search-screen screen-enter">
-    <h1 class="search-title">Rechercher un coopérateur</h1>
+    <h1 class="search-title">Rechercher un·e coopérateur·trice</h1>
 
     <div class="search-box" @keydown="onKeyDown">
       <div class="search-icon">
@@ -9,7 +9,7 @@
       <input
         ref="inputRef"
         class="search-input"
-        placeholder="Prénom, nom ou n° de coopérateur"
+        placeholder="Prénom, nom ou n° de coopérateur·trice"
         :value="query"
         autocomplete="off"
         spellcheck="false"
