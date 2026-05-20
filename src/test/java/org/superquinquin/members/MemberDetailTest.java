@@ -42,7 +42,7 @@ class MemberDetailTest {
     void detailHappyPath() {
         Map<String, Object> p = partner(1247, "DOE, Alice", "up_to_date");
         p.put("create_date", "2018-03-14 09:12:00");
-        p.put("next_shift_time", "2026-05-24 09:00:00");
+        p.put("next_shift_time", "2026-05-24 07:00:00");
         p.put("current_template_name", "CSam. - 09:00");
         p.put("unsubscription_date", false);
         OdooStub.stubSearchReadMatching("res.partner", "\"id\",\"=\",1247", List.of(p));
@@ -62,6 +62,42 @@ class MemberDetailTest {
                 .body("nextShift.time", is("09:00"))
                 .body("nextShift.role", is("CSam. - 09:00"))
                 .body("binome", nullValue());
+    }
+
+    @Test
+    @DisplayName("next shift time is converted from Odoo UTC to Europe/Paris (CEST in May, +2h)")
+    void nextShiftTimeIsConvertedToParisTimezone() {
+        Map<String, Object> p = partner(1247, "DOE, Alice", "up_to_date");
+        p.put("create_date", "2018-03-14 09:12:00");
+        p.put("next_shift_time", "2026-05-27 13:45:00");
+        p.put("current_template_name", "Mer. - 15:45");
+        p.put("unsubscription_date", false);
+        OdooStub.stubSearchReadMatching("res.partner", "\"id\",\"=\",1247", List.of(p));
+        OdooStub.stubSearchReadMatching("res.partner", "\"parent_id\",\"=\",1247", List.of());
+
+        given().when().get("/api/members/1247")
+                .then()
+                .statusCode(200)
+                .body("nextShift.date", is("2026-05-27"))
+                .body("nextShift.time", is("15:45"));
+    }
+
+    @Test
+    @DisplayName("UTC date rolls over to next day in Paris when shift is late evening")
+    void nextShiftRollsOverDayBoundary() {
+        Map<String, Object> p = partner(1247, "DOE, Alice", "up_to_date");
+        p.put("create_date", "2018-03-14 09:12:00");
+        p.put("next_shift_time", "2026-05-26 23:30:00");
+        p.put("current_template_name", "Mer. - 01:30");
+        p.put("unsubscription_date", false);
+        OdooStub.stubSearchReadMatching("res.partner", "\"id\",\"=\",1247", List.of(p));
+        OdooStub.stubSearchReadMatching("res.partner", "\"parent_id\",\"=\",1247", List.of());
+
+        given().when().get("/api/members/1247")
+                .then()
+                .statusCode(200)
+                .body("nextShift.date", is("2026-05-27"))
+                .body("nextShift.time", is("01:30"));
     }
 
     @Test

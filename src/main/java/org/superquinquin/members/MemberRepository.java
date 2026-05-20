@@ -6,6 +6,10 @@ import jakarta.inject.Inject;
 import org.superquinquin.odoo.OdooClient;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -181,12 +185,16 @@ public class MemberRepository {
         );
     }
 
+    private static final ZoneId PARIS = ZoneId.of("Europe/Paris");
+    private static final DateTimeFormatter ODOO_DATETIME =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
     private static MemberDetail.NextShift parseNextShift(String dateTime, String role) {
         if (dateTime == null || dateTime.isBlank()) return null;
-        String[] parts = dateTime.split(" ", 2);
-        LocalDate date = parseDate(parts[0]);
-        String time = parts.length > 1 ? parts[1].substring(0, 5) : "";
-        return new MemberDetail.NextShift(date, time, role);
+        LocalDateTime utc = LocalDateTime.parse(dateTime, ODOO_DATETIME);
+        var paris = utc.atOffset(ZoneOffset.UTC).atZoneSameInstant(PARIS);
+        String time = String.format("%02d:%02d", paris.getHour(), paris.getMinute());
+        return new MemberDetail.NextShift(paris.toLocalDate(), time, role);
     }
 
     private static LocalDate parseDate(String s) {
