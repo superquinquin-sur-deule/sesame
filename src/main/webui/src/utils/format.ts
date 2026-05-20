@@ -1,5 +1,5 @@
 export function formatNumber(n: number): string {
-  return String(n).padStart(4, "0");
+  return String(n).padStart(5, "0");
 }
 
 export function formatDate(iso: string | null | undefined): string {

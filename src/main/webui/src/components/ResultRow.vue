@@ -17,10 +17,6 @@
           <span class="result-meta-key">N°</span>
           <span v-html="highlightedNumber" />
         </span>
-        <span v-if="member.email">
-          <span class="result-meta-key">Email</span>
-          {{ member.email }}
-        </span>
       </span>
     </span>
     <StatusPill :status="member.status" />
