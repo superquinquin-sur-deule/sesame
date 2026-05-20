@@ -142,14 +142,50 @@ class MemberSearchTest {
     }
 
     @Test
+    @DisplayName("technical accounts (neither titulaire nor binôme) are filtered out")
+    void technicalAccountsAreFilteredOut() {
+        OdooStub.stubSearchRead("res.partner", List.of(
+                Map.of(
+                        "id", 2486,
+                        "name", "Accueil",
+                        "email", "accueil@superquinquin-sur-deule.org",
+                        "barcode_base", 0,
+                        "cooperative_state", "not_concerned",
+                        "is_member", false,
+                        "is_associated_people", false,
+                        "parent_member_num", 0
+                ),
+                Map.of(
+                        "id", 1247,
+                        "name", "ACCUEIL, Alice",
+                        "barcode_base", 1247,
+                        "cooperative_state", "up_to_date",
+                        "is_member", true,
+                        "is_associated_people", false,
+                        "parent_member_num", 0
+                )
+        ));
+
+        given().when().get("/api/members?q=Accueil")
+                .then()
+                .statusCode(200)
+                .body("size()", is(1))
+                .body("[0].id", is(1247));
+    }
+
+    @Test
     @DisplayName("cooperative_state values map to the four display statuses")
     void statusMapping() {
         OdooStub.stubSearchRead("res.partner", List.of(
-                Map.of("id", 1, "name", "A, A", "barcode_base", 1, "cooperative_state", "up_to_date"),
-                Map.of("id", 2, "name", "B, B", "barcode_base", 2, "cooperative_state", "delay"),
-                Map.of("id", 3, "name", "C, C", "barcode_base", 3, "cooperative_state", "blocked"),
+                Map.of("id", 1, "name", "A, A", "barcode_base", 1,
+                       "cooperative_state", "up_to_date", "is_member", true),
+                Map.of("id", 2, "name", "B, B", "barcode_base", 2,
+                       "cooperative_state", "delay", "is_member", true),
+                Map.of("id", 3, "name", "C, C", "barcode_base", 3,
+                       "cooperative_state", "blocked", "is_member", true),
                 Map.of("id", 4, "name", "D, D", "barcode_base", 4,
-                       "cooperative_state", "unsubscribed", "parent_member_num", 99)
+                       "cooperative_state", "unsubscribed", "is_associated_people", true,
+                       "parent_member_num", 99)
         ));
 
         given().when().get("/api/members?q=test")

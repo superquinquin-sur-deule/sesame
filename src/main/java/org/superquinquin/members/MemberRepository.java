@@ -46,7 +46,8 @@ public class MemberRepository {
         List<MemberSummary> out = new ArrayList<>();
         if (result != null && result.isArray()) {
             for (JsonNode node : result) {
-                if (!isOrphanGhost(node)) out.add(toSummary(node));
+                if (isOrphanGhost(node) || isTechnicalAccount(node)) continue;
+                out.add(toSummary(node));
             }
         }
         return out;
@@ -57,6 +58,10 @@ public class MemberRepository {
         boolean isAssociated   = boolField(node, "is_associated_people");
         boolean hasParentLink  = intField(node, "parent_member_num") > 0;
         return isUnsubscribed && !isAssociated && !hasParentLink;
+    }
+
+    private static boolean isTechnicalAccount(JsonNode node) {
+        return !boolField(node, "is_member") && !boolField(node, "is_associated_people");
     }
 
     public Optional<MemberDetail> findById(int id) {
@@ -107,6 +112,9 @@ public class MemberRepository {
         List<List<Object>> conjuncts = new ArrayList<>();
         conjuncts.add(List.of(List.of("is_company", "=", false)));
         conjuncts.add(List.of(List.of("active", "=", true)));
+        conjuncts.add(List.of("|",
+                List.of("is_member", "=", true),
+                List.of("is_associated_people", "=", true)));
         conjuncts.add(List.of("|",
                 List.of("cooperative_state", "!=", "unsubscribed"),
                 List.of("parent_member_num", ">", 0)));
