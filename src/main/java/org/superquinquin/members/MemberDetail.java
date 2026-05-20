@@ -15,7 +15,8 @@ public record MemberDetail(
         @Schema(nullable = true) LocalDate joinedOn,
         @Schema(nullable = true) LocalDate leftOn,
         @Schema(nullable = true) NextShift nextShift,
-        @Schema(nullable = true) Binome binome
+        @Schema(nullable = true) Binome binome,
+        @Schema(nullable = true) String photo
 ) {
     public record NextShift(
             @Schema(required = true) LocalDate date,

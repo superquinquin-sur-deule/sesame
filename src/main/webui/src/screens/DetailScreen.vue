@@ -9,7 +9,20 @@
 
     <div v-else-if="member" class="detail-card">
       <div class="detail-left">
-        <div class="detail-photo">
+        <button
+          v-if="member.photo"
+          type="button"
+          class="detail-photo detail-photo-button"
+          :title="`Agrandir la photo de ${member.firstName} ${member.lastName}`"
+          @click="photoOpen = true"
+        >
+          <img
+            :src="member.photo"
+            :alt="`Photo de ${member.firstName} ${member.lastName}`"
+            class="detail-photo-img"
+          />
+        </button>
+        <div v-else class="detail-photo">
           <Avatar :first-name="member.firstName" :last-name="member.lastName" :size="240" />
         </div>
         <div class="detail-id-pill">
@@ -86,6 +99,32 @@
     <div v-else class="empty">
       <h3 class="empty-title">Coopérateur·trice introuvable</h3>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="photoOpen && member?.photo"
+        class="photo-modal-overlay"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="`Photo de ${member.firstName} ${member.lastName}`"
+        @click="photoOpen = false"
+      >
+        <button
+          type="button"
+          class="photo-modal-close"
+          aria-label="Fermer"
+          @click="photoOpen = false"
+        >
+          <Icon name="x" :size="24" :stroke="2.6" />
+        </button>
+        <img
+          :src="member.photo"
+          :alt="`Photo de ${member.firstName} ${member.lastName}`"
+          class="photo-modal-img"
+          @click.stop
+        />
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -103,6 +142,7 @@ const emit = defineEmits<{ back: []; select: [id: number] }>();
 
 const member = ref<MemberDetail | null>(null);
 const loading = ref(false);
+const photoOpen = ref(false);
 let abortCtrl: AbortController | null = null;
 
 async function load(id: number) {
@@ -120,11 +160,18 @@ async function load(id: number) {
   }
 }
 
-watch(() => props.memberId, (id) => load(id), { immediate: true });
+watch(() => props.memberId, (id) => {
+  photoOpen.value = false;
+  load(id);
+}, { immediate: true });
 
 function onGlobalKey(e: KeyboardEvent) {
   if (e.key === "Escape") {
-    emit("back");
+    if (photoOpen.value) {
+      photoOpen.value = false;
+    } else {
+      emit("back");
+    }
     e.preventDefault();
   }
 }

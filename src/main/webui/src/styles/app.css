@@ -359,6 +359,57 @@ kbd.k {
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 8px 0 0 var(--sqq-brown);
 }
+.detail-photo-img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.detail-photo-button {
+  padding: 0;
+  cursor: zoom-in;
+  font: inherit;
+}
+.detail-photo-button:focus-visible {
+  outline: 3px solid var(--sqq-yellow);
+  outline-offset: 4px;
+}
+.photo-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+  padding: 32px;
+  animation: photo-modal-fade 120ms ease-out;
+}
+@keyframes photo-modal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.photo-modal-img {
+  max-width: min(90vw, 800px);
+  max-height: 90vh;
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  cursor: default;
+  display: block;
+}
+.photo-modal-close {
+  position: absolute;
+  top: 24px; right: 24px;
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: white;
+  color: var(--sqq-brown);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.photo-modal-close:hover,
+.photo-modal-close:focus-visible {
+  background: var(--sqq-yellow);
+  outline: none;
+}
 .detail-id-pill {
   position: relative;
   background: var(--sqq-brown);

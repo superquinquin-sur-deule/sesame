@@ -101,6 +101,48 @@ class MemberDetailTest {
     }
 
     @Test
+    @DisplayName("detail exposes the photo as a data URI when image is present (JPEG)")
+    void detailIncludesPhotoAsJpegDataUri() {
+        Map<String, Object> p = partner(1247, "DOE, Alice", "up_to_date");
+        p.put("image", "/9j/4AAQSkZJRgABAQ==");
+        OdooStub.stubSearchReadMatching("res.partner", "\"id\",\"=\",1247", List.of(p));
+        OdooStub.stubSearchReadMatching("res.partner", "\"parent_id\",\"=\",1247", List.of());
+
+        given().when().get("/api/members/1247")
+                .then()
+                .statusCode(200)
+                .body("photo", is("data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ=="));
+    }
+
+    @Test
+    @DisplayName("detail exposes the photo as a data URI when image is present (PNG)")
+    void detailIncludesPhotoAsPngDataUri() {
+        Map<String, Object> p = partner(1247, "DOE, Alice", "up_to_date");
+        p.put("image", "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=");
+        OdooStub.stubSearchReadMatching("res.partner", "\"id\",\"=\",1247", List.of(p));
+        OdooStub.stubSearchReadMatching("res.partner", "\"parent_id\",\"=\",1247", List.of());
+
+        given().when().get("/api/members/1247")
+                .then()
+                .statusCode(200)
+                .body("photo", startsWith("data:image/png;base64,iVBORw0KGgo"));
+    }
+
+    @Test
+    @DisplayName("detail photo is null when Odoo returns no image")
+    void detailPhotoIsNullWhenAbsent() {
+        Map<String, Object> p = partner(1247, "DOE, Alice", "up_to_date");
+        p.put("image", false);
+        OdooStub.stubSearchReadMatching("res.partner", "\"id\",\"=\",1247", List.of(p));
+        OdooStub.stubSearchReadMatching("res.partner", "\"parent_id\",\"=\",1247", List.of());
+
+        given().when().get("/api/members/1247")
+                .then()
+                .statusCode(200)
+                .body("photo", nullValue());
+    }
+
+    @Test
     @DisplayName("missing record returns 404")
     void detailNotFound() {
         OdooStub.stubSearchRead("res.partner", List.of());

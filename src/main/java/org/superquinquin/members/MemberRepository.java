@@ -28,7 +28,7 @@ public class MemberRepository {
             "is_member", "is_associated_people", "is_former_member",
             "parent_id", "parent_member_num",
             "next_shift_time", "current_template_name", "shift_type",
-            "create_date", "unsubscription_date"
+            "create_date", "unsubscription_date", "image"
     );
 
     @Inject OdooClient odoo;
@@ -192,8 +192,19 @@ public class MemberRepository {
                 joinedOn,
                 leftOn,
                 shift,
-                binome
+                binome,
+                toPhotoDataUri(textField(n, "image"))
         );
+    }
+
+    private static String toPhotoDataUri(String base64) {
+        if (base64 == null || base64.isBlank()) return null;
+        String mime;
+        if (base64.startsWith("/9j/")) mime = "image/jpeg";
+        else if (base64.startsWith("iVBORw0KGgo")) mime = "image/png";
+        else if (base64.startsWith("R0lGOD")) mime = "image/gif";
+        else return null;
+        return "data:" + mime + ";base64," + base64;
     }
 
     private static final ZoneId PARIS = ZoneId.of("Europe/Paris");
