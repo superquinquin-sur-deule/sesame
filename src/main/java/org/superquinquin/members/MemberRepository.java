@@ -27,8 +27,16 @@ public class MemberRepository {
             "id", "name", "email", "barcode_base", "cooperative_state",
             "is_member", "is_associated_people", "is_former_member",
             "parent_id", "parent_member_num",
-            "next_shift_time", "current_template_name", "shift_type",
+            "current_template_name",
             "create_date", "unsubscription_date", "image"
+    );
+
+    private static final List<String> REGISTRATION_FIELDS = List.of(
+            "id", "date_begin", "shift_type", "state", "shift_ticket_id"
+    );
+
+    private static final List<String> ACTIVE_REGISTRATION_STATES = List.of(
+            "draft", "open", "waiting", "replacing"
     );
 
     @Inject OdooClient odoo;
@@ -79,7 +87,32 @@ public class MemberRepository {
         if (result == null || !result.isArray() || result.size() == 0) return Optional.empty();
         JsonNode node = result.get(0);
         MemberDetail.Binome binome = resolveBinome(node);
-        return Optional.of(toDetail(node, binome));
+        MemberDetail.NextShift nextShift = findNextShift(id, textField(node, "current_template_name"));
+        return Optional.of(toDetail(node, binome, nextShift));
+    }
+
+    private MemberDetail.NextShift findNextShift(int partnerId, String currentTemplateName) {
+        String nowUtc = LocalDateTime.now(ZoneOffset.UTC).format(ODOO_DATETIME);
+        JsonNode result = odoo.executeKw(
+                "shift.registration", "search_read",
+                List.of(List.of(
+                        List.of("partner_id", "=", partnerId),
+                        List.of("date_begin", ">=", nowUtc),
+                        List.of("state", "in", ACTIVE_REGISTRATION_STATES)
+                )),
+                Map.of("fields", REGISTRATION_FIELDS, "limit", 1, "order", "date_begin asc")
+        );
+        if (result == null || !result.isArray() || result.size() == 0) return null;
+        JsonNode reg = result.get(0);
+        String role = "ftop".equals(textField(reg, "shift_type"))
+                ? many2oneName(reg.get("shift_ticket_id"))
+                : currentTemplateName;
+        return parseNextShift(textField(reg, "date_begin"), role);
+    }
+
+    private static String many2oneName(JsonNode ref) {
+        if (ref == null || !ref.isArray() || ref.size() < 2) return null;
+        return ref.get(1).asText();
     }
 
     private MemberDetail.Binome resolveBinome(JsonNode node) {
@@ -174,13 +207,10 @@ public class MemberRepository {
         );
     }
 
-    private static MemberDetail toDetail(JsonNode n, MemberDetail.Binome binome) {
+    private static MemberDetail toDetail(JsonNode n, MemberDetail.Binome binome, MemberDetail.NextShift nextShift) {
         ParsedName name = splitName(textField(n, "name"));
         LocalDate joinedOn = parseDate(textField(n, "create_date"));
         LocalDate leftOn = parseDate(textField(n, "unsubscription_date"));
-        MemberDetail.NextShift shift = parseNextShift(
-                textField(n, "next_shift_time"),
-                textField(n, "current_template_name"));
         return new MemberDetail(
                 n.get("id").asInt(),
                 intField(n, "barcode_base"),
@@ -191,7 +221,7 @@ public class MemberRepository {
                 null,
                 joinedOn,
                 leftOn,
-                shift,
+                nextShift,
                 binome,
                 toPhotoDataUri(textField(n, "image"))
         );

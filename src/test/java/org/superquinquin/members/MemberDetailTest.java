@@ -37,16 +37,27 @@ class MemberDetailTest {
         return m;
     }
 
+    private static Map<String, Object> registration(String dateBegin, String shiftType, String ticketName) {
+        Map<String, Object> r = new HashMap<>();
+        r.put("id", (int) (Math.random() * 100000));
+        r.put("date_begin", dateBegin);
+        r.put("shift_type", shiftType);
+        r.put("state", "open");
+        r.put("shift_ticket_id", List.of(1, ticketName));
+        return r;
+    }
+
     @Test
     @DisplayName("detail returns the full record with name split, status, joined date and next shift")
     void detailHappyPath() {
         Map<String, Object> p = partner(1247, "DOE, Alice", "up_to_date");
         p.put("create_date", "2018-03-14 09:12:00");
-        p.put("next_shift_time", "2026-05-24 07:00:00");
         p.put("current_template_name", "CSam. - 09:00");
         p.put("unsubscription_date", false);
         OdooStub.stubSearchReadMatching("res.partner", "\"id\",\"=\",1247", List.of(p));
         OdooStub.stubSearchReadMatching("res.partner", "\"parent_id\",\"=\",1247", List.of());
+        OdooStub.stubSearchReadMatching("shift.registration", "\"partner_id\",\"=\",1247",
+                List.of(registration("2026-05-24 07:00:00", "standard", "ABCD")));
 
         given().when().get("/api/members/1247")
                 .then()
@@ -69,11 +80,12 @@ class MemberDetailTest {
     void nextShiftTimeIsConvertedToParisTimezone() {
         Map<String, Object> p = partner(1247, "DOE, Alice", "up_to_date");
         p.put("create_date", "2018-03-14 09:12:00");
-        p.put("next_shift_time", "2026-05-27 13:45:00");
         p.put("current_template_name", "Mer. - 15:45");
         p.put("unsubscription_date", false);
         OdooStub.stubSearchReadMatching("res.partner", "\"id\",\"=\",1247", List.of(p));
         OdooStub.stubSearchReadMatching("res.partner", "\"parent_id\",\"=\",1247", List.of());
+        OdooStub.stubSearchReadMatching("shift.registration", "\"partner_id\",\"=\",1247",
+                List.of(registration("2026-05-27 13:45:00", "standard", "ABCD")));
 
         given().when().get("/api/members/1247")
                 .then()
@@ -87,11 +99,12 @@ class MemberDetailTest {
     void nextShiftRollsOverDayBoundary() {
         Map<String, Object> p = partner(1247, "DOE, Alice", "up_to_date");
         p.put("create_date", "2018-03-14 09:12:00");
-        p.put("next_shift_time", "2026-05-26 23:30:00");
         p.put("current_template_name", "Mer. - 01:30");
         p.put("unsubscription_date", false);
         OdooStub.stubSearchReadMatching("res.partner", "\"id\",\"=\",1247", List.of(p));
         OdooStub.stubSearchReadMatching("res.partner", "\"parent_id\",\"=\",1247", List.of());
+        OdooStub.stubSearchReadMatching("shift.registration", "\"partner_id\",\"=\",1247",
+                List.of(registration("2026-05-26 23:30:00", "standard", "ABCD")));
 
         given().when().get("/api/members/1247")
                 .then()
@@ -101,12 +114,53 @@ class MemberDetailTest {
     }
 
     @Test
+    @DisplayName("upcoming ftop/volant registration is picked when earlier than the next standard slot")
+    void nextShiftIncludesAnticipatedVolantSlot() {
+        Map<String, Object> p = partner(1247, "DOE, Alice", "up_to_date");
+        p.put("create_date", "2018-03-14 09:12:00");
+        p.put("current_template_name", "BMer. - 10:45");
+        p.put("unsubscription_date", false);
+        OdooStub.stubSearchReadMatching("res.partner", "\"id\",\"=\",1247", List.of(p));
+        OdooStub.stubSearchReadMatching("res.partner", "\"parent_id\",\"=\",1247", List.of());
+        OdooStub.stubSearchReadMatching("shift.registration", "\"partner_id\",\"=\",1247",
+                List.of(
+                        registration("2026-05-23 13:45:00", "ftop", "Volant"),
+                        registration("2026-06-10 08:45:00", "standard", "ABCD")
+                ));
+
+        given().when().get("/api/members/1247")
+                .then()
+                .statusCode(200)
+                .body("nextShift.date", is("2026-05-23"))
+                .body("nextShift.time", is("15:45"))
+                .body("nextShift.role", is("Volant"));
+    }
+
+    @Test
+    @DisplayName("nextShift is null when the member has no upcoming registration")
+    void nextShiftAbsentWhenNoUpcomingRegistration() {
+        Map<String, Object> p = partner(1247, "DOE, Alice", "up_to_date");
+        p.put("create_date", "2018-03-14 09:12:00");
+        p.put("current_template_name", "BMer. - 10:45");
+        p.put("unsubscription_date", false);
+        OdooStub.stubSearchReadMatching("res.partner", "\"id\",\"=\",1247", List.of(p));
+        OdooStub.stubSearchReadMatching("res.partner", "\"parent_id\",\"=\",1247", List.of());
+        OdooStub.stubSearchReadMatching("shift.registration", "\"partner_id\",\"=\",1247", List.of());
+
+        given().when().get("/api/members/1247")
+                .then()
+                .statusCode(200)
+                .body("nextShift", nullValue());
+    }
+
+    @Test
     @DisplayName("detail exposes the photo as a data URI when image is present (JPEG)")
     void detailIncludesPhotoAsJpegDataUri() {
         Map<String, Object> p = partner(1247, "DOE, Alice", "up_to_date");
         p.put("image", "/9j/4AAQSkZJRgABAQ==");
         OdooStub.stubSearchReadMatching("res.partner", "\"id\",\"=\",1247", List.of(p));
         OdooStub.stubSearchReadMatching("res.partner", "\"parent_id\",\"=\",1247", List.of());
+        OdooStub.stubSearchReadMatching("shift.registration", "\"partner_id\",\"=\",1247", List.of());
 
         given().when().get("/api/members/1247")
                 .then()
@@ -121,6 +175,7 @@ class MemberDetailTest {
         p.put("image", "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=");
         OdooStub.stubSearchReadMatching("res.partner", "\"id\",\"=\",1247", List.of(p));
         OdooStub.stubSearchReadMatching("res.partner", "\"parent_id\",\"=\",1247", List.of());
+        OdooStub.stubSearchReadMatching("shift.registration", "\"partner_id\",\"=\",1247", List.of());
 
         given().when().get("/api/members/1247")
                 .then()
@@ -135,6 +190,7 @@ class MemberDetailTest {
         p.put("image", false);
         OdooStub.stubSearchReadMatching("res.partner", "\"id\",\"=\",1247", List.of(p));
         OdooStub.stubSearchReadMatching("res.partner", "\"parent_id\",\"=\",1247", List.of());
+        OdooStub.stubSearchReadMatching("shift.registration", "\"partner_id\",\"=\",1247", List.of());
 
         given().when().get("/api/members/1247")
                 .then()
@@ -160,6 +216,7 @@ class MemberDetailTest {
         b.put("is_member", false);
         b.put("is_associated_people", true);
         OdooStub.stubSearchReadMatching("res.partner", "\"parent_id\",\"=\",1247", List.of(b));
+        OdooStub.stubSearchReadMatching("shift.registration", "\"partner_id\",\"=\",1247", List.of());
 
         given().when().get("/api/members/1247")
                 .then()
