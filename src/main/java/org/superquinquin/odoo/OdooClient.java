@@ -19,8 +19,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @ApplicationScoped
 public class OdooClient {
-
-    private static final Logger LOG = Logger.getLogger(OdooClient.class);
     private static final ObjectMapper JSON = new ObjectMapper();
 
     @Inject OdooConfig config;
@@ -70,11 +68,7 @@ public class OdooClient {
                 .add(JSON.valueToTree(kwargs == null ? Map.of() : kwargs));
         return call(params);
     }
-
-    /**
-     * Writes {@code values} onto a single record. This is the only write path in the app — the rest
-     * of the Odoo integration is read-only. Returns Odoo's boolean success flag.
-     */
+    
     public boolean write(String model, int id, Map<String, Object> values) {
         JsonNode result = executeKw(model, "write", List.of(List.of(id), values), Map.of());
         return result != null && result.asBoolean(false);

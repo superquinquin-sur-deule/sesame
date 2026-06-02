@@ -2,17 +2,10 @@ package org.superquinquin.members;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.quarkus.logging.Log;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.BadRequestException;
-import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.NotFoundException;
-import jakarta.ws.rs.POST;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.PathParam;
-import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
@@ -80,6 +73,7 @@ public class MemberResource {
     @Path("/{id}/photo")
     @Consumes(MediaType.APPLICATION_JSON)
     public MemberDetail uploadPhoto(@PathParam("id") int id, PhotoUpload body) {
+        Log.infof("Photo upload for member %d", id);
         photoUploadCounter.increment();
         final String base64;
         try {
