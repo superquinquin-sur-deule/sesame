@@ -3,17 +3,24 @@ package org.superquinquin.members;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.superquinquin.odoo.OdooClient;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 @ApplicationScoped
 public class MemberRepository {
@@ -40,6 +47,14 @@ public class MemberRepository {
     );
 
     @Inject OdooClient odoo;
+
+    /**
+     * SHA-256 (of the decoded image bytes) of each known Odoo "no photo" placeholder silhouette.
+     * Members carrying one of these are reported as having no photo — see {@link #photoDataUri}.
+     */
+    @Inject
+    @ConfigProperty(name = "sesame.photo.placeholder-sha256")
+    Set<String> placeholderSha256;
 
     public List<MemberSummary> search(String query) {
         String q = query == null ? "" : query.trim();
@@ -78,6 +93,40 @@ public class MemberRepository {
         return !boolField(node, "is_member") && !boolField(node, "is_associated_people");
     }
 
+    /**
+     * Writes a pre-validated base64 photo into Odoo ({@code res.partner.image}) so Odoo recomputes
+     * {@code image_medium}/{@code image_small}. The argument must already be cleaned by
+     * {@link #extractBase64} (the resource validates before checking existence). Throws if Odoo
+     * refuses the write.
+     */
+    public void updatePhoto(int id, String base64) {
+        if (!odoo.write("res.partner", id, Map.of("image", base64))) {
+            throw new IllegalStateException("Odoo refused the photo write for member " + id);
+        }
+    }
+
+    private static final Pattern DATA_URI_PREFIX = Pattern.compile("^data:[^;,]+;base64,");
+    // A legitimate ~512px JPEG is tens of KB of base64; this bounds the single production write path.
+    private static final int MAX_PHOTO_BASE64_CHARS = 4_000_000;
+
+    /**
+     * Validates and normalises a photo payload: strips an optional {@code data:…;base64,} prefix and
+     * returns the bare, single-line base64. Throws {@link IllegalArgumentException} (→ HTTP 400) for
+     * an empty, oversized, or non-base64 payload — before any Odoo call.
+     */
+    static String extractBase64(String photo) {
+        if (photo == null) throw new IllegalArgumentException("photo is required");
+        String base64 = DATA_URI_PREFIX.matcher(photo.trim()).replaceFirst("").trim();
+        if (base64.isEmpty()) throw new IllegalArgumentException("photo is empty");
+        if (base64.length() > MAX_PHOTO_BASE64_CHARS) throw new IllegalArgumentException("photo is too large");
+        try {
+            Base64.getDecoder().decode(base64);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("photo is not valid base64");
+        }
+        return base64;
+    }
+
     public Optional<MemberDetail> findById(int id) {
         JsonNode result = odoo.executeKw(
                 "res.partner", "search_read",
@@ -88,7 +137,8 @@ public class MemberRepository {
         JsonNode node = result.get(0);
         MemberDetail.Binome binome = resolveBinome(node);
         MemberDetail.NextShift nextShift = findNextShift(id, textField(node, "current_template_name"));
-        return Optional.of(toDetail(node, binome, nextShift));
+        String photo = photoDataUri(textField(node, "image"));
+        return Optional.of(toDetail(node, binome, nextShift, photo));
     }
 
     private MemberDetail.NextShift findNextShift(int partnerId, String currentTemplateName) {
@@ -207,7 +257,7 @@ public class MemberRepository {
         );
     }
 
-    private static MemberDetail toDetail(JsonNode n, MemberDetail.Binome binome, MemberDetail.NextShift nextShift) {
+    private static MemberDetail toDetail(JsonNode n, MemberDetail.Binome binome, MemberDetail.NextShift nextShift, String photo) {
         ParsedName name = splitName(textField(n, "name"));
         LocalDate joinedOn = parseDate(textField(n, "create_date"));
         LocalDate leftOn = parseDate(textField(n, "unsubscription_date"));
@@ -223,8 +273,44 @@ public class MemberRepository {
                 leftOn,
                 nextShift,
                 binome,
-                toPhotoDataUri(textField(n, "image"))
+                photo
         );
+    }
+
+    /**
+     * Resolves a partner {@code image} into a renderable data URI, or {@code null} when there is no
+     * usable photo. Beyond the empty/unrecognised cases, Odoo stamps a generic grey silhouette on
+     * many imported cooperators; that placeholder (matched by {@link #isDefaultPlaceholder}) is
+     * reported as absent so the UI shows initials and offers "Prendre une photo", not "Reprendre".
+     */
+    private String photoDataUri(String base64) {
+        if (base64 == null || base64.isBlank()) return null;
+        if (isDefaultPlaceholder(base64)) return null;
+        return toPhotoDataUri(base64);
+    }
+
+    private boolean isDefaultPlaceholder(String base64) {
+        if (placeholderSha256 == null || placeholderSha256.isEmpty()) return false;
+        final byte[] decoded;
+        try {
+            decoded = Base64.getDecoder().decode(base64);
+        } catch (IllegalArgumentException e) {
+            return false; // not decodable here → let toPhotoDataUri decide
+        }
+        String hex = sha256Hex(decoded);
+        for (String known : placeholderSha256) {
+            if (known != null && known.trim().equalsIgnoreCase(hex)) return true;
+        }
+        return false;
+    }
+
+    private static String sha256Hex(byte[] bytes) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(md.digest(bytes));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e); // guaranteed by the JDK
+        }
     }
 
     private static String toPhotoDataUri(String base64) {

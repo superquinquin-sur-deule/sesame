@@ -58,6 +58,10 @@
     <template v-else-if="name === 'x'">
       <path d="M18 6 6 18M6 6l12 12" />
     </template>
+    <template v-else-if="name === 'camera'">
+      <path d="M14.5 4h-5L8 6.5H4a2 2 0 0 0-2 2V18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8.5a2 2 0 0 0-2-2h-4L14.5 4Z" />
+      <circle cx="12" cy="13" r="3.6" />
+    </template>
   </svg>
 </template>
 

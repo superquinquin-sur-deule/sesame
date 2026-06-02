@@ -28,6 +28,11 @@
         <div class="detail-id-pill">
           N° <span class="detail-id-pill-num">{{ formatNumber(member.number) }}</span>
         </div>
+
+        <button type="button" class="detail-capture-btn" @click="openCapture">
+          <Icon name="camera" :size="16" :stroke="2.4" />
+          {{ member.photo ? "Reprendre la photo" : "Prendre une photo" }}
+        </button>
       </div>
 
       <div class="detail-right">
@@ -125,6 +130,14 @@
         />
       </div>
     </Teleport>
+
+    <WebcamCapture
+      v-if="captureOpen"
+      :uploading="uploading"
+      :error-message="captureError"
+      @confirm="onCaptureConfirm"
+      @cancel="closeCapture"
+    />
   </div>
 </template>
 
@@ -134,7 +147,8 @@ import Avatar from "../components/Avatar.vue";
 import Icon from "../components/Icon.vue";
 import StatusPill from "../components/StatusPill.vue";
 import StatusBanner from "../components/StatusBanner.vue";
-import { getMember, type MemberDetail } from "../api/members";
+import WebcamCapture from "../components/WebcamCapture.vue";
+import { getMember, uploadMemberPhoto, type MemberDetail } from "../api/members";
 import { formatDate, formatDay, formatNumber } from "../utils/format";
 
 const props = defineProps<{ memberId: number }>();
@@ -143,6 +157,9 @@ const emit = defineEmits<{ back: []; select: [id: number] }>();
 const member = ref<MemberDetail | null>(null);
 const loading = ref(false);
 const photoOpen = ref(false);
+const captureOpen = ref(false);
+const uploading = ref(false);
+const captureError = ref<string | null>(null);
 let abortCtrl: AbortController | null = null;
 
 async function load(id: number) {
@@ -162,18 +179,46 @@ async function load(id: number) {
 
 watch(() => props.memberId, (id) => {
   photoOpen.value = false;
+  captureOpen.value = false;
+  uploading.value = false;
+  captureError.value = null;
   load(id);
 }, { immediate: true });
 
-function onGlobalKey(e: KeyboardEvent) {
-  if (e.key === "Escape") {
-    if (photoOpen.value) {
-      photoOpen.value = false;
-    } else {
-      emit("back");
-    }
-    e.preventDefault();
+function openCapture() {
+  captureError.value = null;
+  captureOpen.value = true;
+}
+
+function closeCapture() {
+  if (uploading.value) return;
+  captureOpen.value = false;
+  captureError.value = null;
+}
+
+async function onCaptureConfirm(dataUrl: string) {
+  uploading.value = true;
+  captureError.value = null;
+  try {
+    member.value = await uploadMemberPhoto(props.memberId, dataUrl);
+    captureOpen.value = false;
+  } catch {
+    captureError.value = "Échec de l'enregistrement de la photo. Réessayez.";
+  } finally {
+    uploading.value = false;
   }
+}
+
+function onGlobalKey(e: KeyboardEvent) {
+  if (e.key !== "Escape") return;
+  // While the capture modal is open, let WebcamCapture own the Escape key.
+  if (captureOpen.value) return;
+  if (photoOpen.value) {
+    photoOpen.value = false;
+  } else {
+    emit("back");
+  }
+  e.preventDefault();
 }
 onMounted(() => window.addEventListener("keydown", onGlobalKey));
 onUnmounted(() => window.removeEventListener("keydown", onGlobalKey));

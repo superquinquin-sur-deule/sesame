@@ -4,13 +4,17 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 import java.util.List;
 
@@ -25,6 +29,8 @@ public class MemberResource {
     private Counter searchEmptyQueryCounter;
     private Counter detailCounter;
     private Counter detailNotFoundCounter;
+    private Counter photoUploadCounter;
+    private Counter photoUploadRejectedCounter;
 
     @PostConstruct
     void initMeters() {
@@ -39,6 +45,12 @@ public class MemberResource {
                 .register(registry);
         detailNotFoundCounter = Counter.builder("sesame.members.detail.not_found")
                 .description("Number of member detail requests that returned 404")
+                .register(registry);
+        photoUploadCounter = Counter.builder("sesame.members.photo_upload")
+                .description("Number of member photo upload requests")
+                .register(registry);
+        photoUploadRejectedCounter = Counter.builder("sesame.members.photo_upload.rejected")
+                .description("Number of member photo uploads rejected as invalid (400)")
                 .register(registry);
     }
 
@@ -60,5 +72,27 @@ public class MemberResource {
                     detailNotFoundCounter.increment();
                     return new NotFoundException("Member " + id + " not found");
                 });
+    }
+
+    record PhotoUpload(@Schema(required = true, description = "Photo as a data URI or single-line base64") String photo) {}
+
+    @POST
+    @Path("/{id}/photo")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public MemberDetail uploadPhoto(@PathParam("id") int id, PhotoUpload body) {
+        photoUploadCounter.increment();
+        final String base64;
+        try {
+            base64 = MemberRepository.extractBase64(body == null ? null : body.photo());
+        } catch (IllegalArgumentException e) {
+            photoUploadRejectedCounter.increment();
+            throw new BadRequestException(e.getMessage());
+        }
+        if (repository.findById(id).isEmpty()) {
+            throw new NotFoundException("Member " + id + " not found");
+        }
+        repository.updatePhoto(id, base64);
+        return repository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Member " + id + " not found"));
     }
 }

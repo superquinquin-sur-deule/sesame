@@ -58,6 +58,40 @@ public final class OdooStub {
         return server.findAll(rp).size();
     }
 
+    /** Stubs a successful {@code write} on the given model+id (Odoo returns {@code true}). */
+    public static void stubWrite(String model, int id) {
+        server.stubFor(post(urlEqualTo("/jsonrpc"))
+                .atPriority(1)
+                .withRequestBody(containing("\"execute_kw\""))
+                .withRequestBody(containing("\"" + model + "\""))
+                .withRequestBody(containing("\"write\""))
+                .withRequestBody(containing("[" + id + "]"))
+                .willReturn(okJson(jsonResult(true))));
+    }
+
+    /** Asserts at least one {@code write} call was made on model+id whose body contains the fragment. */
+    public static void verifyWrite(String model, int id, String payloadFragment) {
+        RequestPatternBuilder rp = postRequestedFor(urlEqualTo("/jsonrpc"))
+                .withRequestBody(containing("\"execute_kw\""))
+                .withRequestBody(containing("\"" + model + "\""))
+                .withRequestBody(containing("\"write\""))
+                .withRequestBody(containing("[" + id + "]"))
+                .withRequestBody(containing(payloadFragment));
+        if (server.findAll(rp).isEmpty()) {
+            throw new AssertionError("Expected a write on " + model + " id=" + id
+                    + " containing: " + payloadFragment);
+        }
+    }
+
+    /** Counts {@code write} calls on the given model (used to assert no write happened). */
+    public static int writeCount(String model) {
+        RequestPatternBuilder rp = postRequestedFor(urlEqualTo("/jsonrpc"))
+                .withRequestBody(containing("\"execute_kw\""))
+                .withRequestBody(containing("\"" + model + "\""))
+                .withRequestBody(containing("\"write\""));
+        return server.findAll(rp).size();
+    }
+
     private static String jsonResult(Object payload) {
         try {
             return JSON.writeValueAsString(Map.of("jsonrpc", "2.0", "result", payload));

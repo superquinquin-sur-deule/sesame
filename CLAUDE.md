@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**Sésame** — kiosk app for the SuperQuinquin entry desk that lets the welcome staff verify a cooperator's status (à jour / en alerte / suspendu / désinscrit), with search and detail screens. The backend is read-only against the production Odoo instance.
+**Sésame** — kiosk app for the SuperQuinquin entry desk that lets the welcome staff verify a cooperator's status (à jour / en alerte / suspendu / désinscrit), with search and detail screens. The backend is read-only against the production Odoo instance **except for one narrow write path**: uploading a cooperator photo (`res.partner.image`) via `POST /api/members/{id}/photo`. Everything else is `search_read`/`read` only.
 
 ## Stack
 
@@ -38,7 +38,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```
 Browser  ──┐                                  ┌── Odoo JSON-RPC (.env-driven)
-           │  fetch /api/members*             │     • res.partner search_read/read only
+           │  fetch /api/members*             │     • res.partner search_read/read (+ one write: image)
            ▼                                  │     • login uid cached in OdooClient
   Vue (src/main/webui/src/screens)            │
    └─ orval client (api/generated.ts) ──┐    │
@@ -47,9 +47,10 @@ Browser  ──┐                                  ┌── Odoo JSON-RPC (.en
                               MemberResource → MemberRepository → OdooClient
 ```
 
-Two endpoints, both in `MemberResource`:
+Three endpoints, all in `MemberResource`:
 - `GET /api/members?q=…` → `MemberRepository.search(q)` — name OR cooperator number, fuzzy `ilike`.
 - `GET /api/members/{id}` → `MemberRepository.findById(id)` — does a second `search_read` to expand the binôme (either the `is_associated_people` child or, if the queried record IS the child, the parent member).
+- `POST /api/members/{id}/photo` → `MemberRepository.updatePhoto(id, photo)` — the **only write**. Accepts a `PhotoUpload { photo }` (data URI or raw base64), strips any `data:…;base64,` prefix, validates it as base64, then `OdooClient.write("res.partner", id, {image: …})` (Odoo v9–12 field `image`, which auto-recomputes `image_medium`/`image_small`). Returns the refreshed `MemberDetail`. The webcam capture UI is `WebcamCapture.vue`, opened from `DetailScreen.vue`.
 
 The frontend has two screens (`SearchScreen.vue` / `DetailScreen.vue`) plus shared components in `src/main/webui/src/components/`. Navigation is purely component-state (no router): `App.vue` holds `selectedId` and swaps between the two.
 
@@ -69,4 +70,6 @@ These are non-obvious and load-bearing — read `MemberRepository.java` before c
 
 ## Inspecting Odoo
 
-Use the `odoo-query` skill (read-only — `search_read` / `read` / `fields_get` only, never write). It loads `.env` and shells out to `curl` against the JSON-RPC endpoint. Run it before designing a new endpoint to confirm the exact field names and selection values on `res.partner` (or `shift.shift`, `shift.registration`, etc.).
+Use the `odoo-query` skill (read-only — `search_read` / `read` / `fields_get` only, never write). It loads `.env` and shells out to `curl` against the JSON-RPC endpoint. Run it before designing a new endpoint to confirm the exact field names and selection values on `res.partner` (or `shift.shift`, `shift.registration`, etc.). The skill stays strictly read-only even though the app now has one write path — photo upload goes through the backend (`OdooClient.write`), not this skill.
+
+> **Prod gotcha:** the production reverse proxy (Trobz) rejects `fields_get` with an HTML "Bad Request". Inspect schema via `search_read`/`read` on a real record instead (e.g. `read([id], ["image","image_medium","image_small"])` to confirm the photo fields). The cooperator photo lives in `res.partner.image` (this is an Odoo v9–12 fork; there is no `image_1920`).

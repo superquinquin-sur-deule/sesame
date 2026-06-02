@@ -198,6 +198,32 @@ class MemberDetailTest {
                 .body("photo", nullValue());
     }
 
+    // A 2×2 PNG whose decoded SHA-256 the %test profile designates as Odoo's generic "no photo"
+    // silhouette (sesame.photo.placeholder-sha256). On prod that placeholder is the grey avatar
+    // Odoo stamps on imported cooperators — it must read back as "no photo", not a real picture,
+    // so the UI shows initials + "Prendre une photo" rather than "Reprendre".
+    private static final String DEFAULT_PLACEHOLDER_B64 =
+            "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR4nGOs9j3xn4GBgYGJAQoAJtsCk5Kku7oAAAAASUVORK5CYII=";
+
+    @Test
+    @DisplayName("detail photo is null when Odoo returns its generic default silhouette (treated as no photo)")
+    void detailPhotoIsNullWhenDefaultPlaceholder() {
+        Map<String, Object> p = partner(1247, "DOE, Alice", "up_to_date");
+        p.put("image", DEFAULT_PLACEHOLDER_B64);
+        OdooStub.stubSearchReadMatching("res.partner", "\"id\",\"=\",1247", List.of(p));
+        OdooStub.stubSearchReadMatching("res.partner", "\"parent_id\",\"=\",1247", List.of());
+        OdooStub.stubSearchReadMatching("shift.registration", "\"partner_id\",\"=\",1247", List.of());
+
+        given().when().get("/api/members/1247")
+                .then()
+                .statusCode(200)
+                .body("photo", nullValue());
+    }
+    // Note: "a non-placeholder photo is kept" is already pinned by detailIncludesPhotoAsPngDataUri /
+    // detailIncludesPhotoAsJpegDataUri above — those fixtures are NOT in the placeholder set, and the
+    // PNG one shares the placeholder's format, so together they prove detection keys on the exact
+    // hash, not on the image type.
+
     @Test
     @DisplayName("missing record returns 404")
     void detailNotFound() {

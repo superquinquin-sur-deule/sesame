@@ -71,6 +71,15 @@ public class OdooClient {
         return call(params);
     }
 
+    /**
+     * Writes {@code values} onto a single record. This is the only write path in the app — the rest
+     * of the Odoo integration is read-only. Returns Odoo's boolean success flag.
+     */
+    public boolean write(String model, int id, Map<String, Object> values) {
+        JsonNode result = executeKw(model, "write", List.of(List.of(id), values), Map.of());
+        return result != null && result.asBoolean(false);
+    }
+
     private JsonNode call(ObjectNode params) {
         ObjectNode body = JSON.createObjectNode()
                 .put("jsonrpc", "2.0")
